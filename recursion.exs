@@ -29,7 +29,17 @@ defmodule Recursion do
   end
 
 
-  def sum([]),           do: 0
+  def sum([]),            do: 0
   def sum([head | tail]), do: head + sum(tail)
+
+  def map([], _fun),           do: []
+  def map([head | tail], fun), do: [fun.(head) | map(tail, fun)]
+
+  def mapsum(list, fun), do: list |> map(fun) |> sum
+
+  def max([]), do: nil
+  def max([max]), do: max
+  def max([head1 | [head2 | tail]]) when head1 < head2, do: max([head2 | tail])
+  def max([head1 | [head2 | tail]]), do: max([head1 | tail])
 end
 

@@ -32,20 +32,29 @@ defmodule Recursion do
   def sum([]),            do: 0
   def sum([head | tail]), do: head + sum(tail)
 
+
   def map([], _fun),           do: []
   def map([head | tail], fun), do: [fun.(head) | map(tail, fun)]
 
+
   def mapsum(list, fun), do: list |> map(fun) |> sum
+
 
   def max([]),                                       do: nil
   def max([max]),                                    do: max
   def max([head1, head2 | tail]) when head1 < head2, do: max([head2 | tail])
   def max([head1 | [_head2 | tail]]),                do: max([head1 | tail])
 
+
   def caesar([], _n),                do: []
   def caesar([head | tail], n),      do: [_c_add(head + n) | caesar(tail, n)]
   defp _c_add(char) when char < 97,  do: _c_add(char + 26)
   defp _c_add(char) when char > 122, do: _c_add(char - 26)
   defp _c_add(char),                 do: char
+
+
+  def span(from, to) when from > to, do: raise "arguments must be of the form span(from, to) where from <= to"
+  def span(to, to),                  do: [to]
+  def span(from, to),                do: [from | span(from + 1, to)]
 end
 

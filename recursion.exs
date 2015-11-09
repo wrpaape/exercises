@@ -56,5 +56,23 @@ defmodule Recursion do
   def span(from, to) when from > to, do: raise "arguments must be of the form span(from, to) where from <= to"
   def span(to, to),                  do: [to]
   def span(from, to),                do: [from | span(from + 1, to)]
+
+
+  def all?([], _con),    do: true
+  def all?([h | t], con) do
+    if con.(h) and all?(t, con), do: true, else: false
+  end
+
+  def each([], _fun),    do: :ok
+  def each([h | t], fun) do
+    fun.(h)
+    each(t, fun)
+  end
+
+  def filter([], _con),    do: []
+  def filter([h | t], con) do
+    rest = filter(t, con)
+    if(con.(h), do: [h | rest], else: rest)
+  end
 end
 

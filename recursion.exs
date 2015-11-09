@@ -85,12 +85,6 @@ defmodule Recursion do
       into: [2],
       do: i
   end
-
-  def with_total(orders, tax_rates) do
-    for [_, ship_to: state, net_amount: net_amount] <- orders,
-    into: orders,
-    do: [total_amount: (1 + (tax_rates[state] || 0)) * net_amount]
-  end
 end
 
 

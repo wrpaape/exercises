@@ -80,7 +80,16 @@ defmodule Recursion do
   def flatten(el),  do: [el]
 
   def primes_to(n) do
-    for i <- span(3, n), all?(span(2, i - 1), &(rem(i, &1) != 0 )), into: [2], do: i
+    for i <- span(3, n),
+      all?(span(2, i - 1), &(rem(i, &1) != 0 )),
+      into: [2],
+      do: i
+  end
+
+  def with_total(orders, tax_rates) do
+    for [_, ship_to: state, net_amount: net_amount] <- orders,
+    into: orders,
+    do: [total_amount: (1 + (tax_rates[state] || 0)) * net_amount]
   end
 end
 

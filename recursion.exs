@@ -74,5 +74,17 @@ defmodule Recursion do
     rest = filter(t, con)
     if(con.(h), do: [h | rest], else: rest)
   end
+
+  # def flatten([h1, h2 | t]), do: flatten(h1) ++ flatten([])
+
+  def flatten([h | t]), do: flatten(h) ++ flatten(t)
+  def flatten([]),  do: []
+  def flatten(el),  do: [el]
 end
+
+
+
+
+
+
 

@@ -10,6 +10,7 @@ defmodule StrBin do
 
   defp _parse_num(num) do
     import List, only: [to_float: 1, to_integer: 1]
+
     if ?. in num, do: to_float(num), else: to_integer(num)
   end
 
@@ -31,5 +32,15 @@ defmodule StrBin do
       end
 
     apply fun, nums
+  end
+
+  defp _len(len, max_len), do: len + div(max_len - len, 2)
+  def center(strings) do
+    lens_strs = Enum.map strings, &{String.length(&1), &1}
+    {max_len, _str} = Enum.max lens_strs
+
+    Enum.each lens_strs, fn {len, str} ->
+      str |> String.rjust(len |> _len(max_len)) |> IO.puts
+    end
   end
 end

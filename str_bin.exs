@@ -43,4 +43,14 @@ defmodule StrBin do
       str |> String.rjust(len |> _len(max_len)) |> IO.puts
     end
   end
+
+  # def cap_sents(<<>>),                      do: []
+  # def cap_sents(<<?., ?\s, h, t::binary>>), do: <<?., ?\s, String.upcase(h), cap_sents(t)>>
+  # def cap_sents(<<h, t::binary>>),          do: <<String.downcase(h), cap_sents(t)>>
+  def cap_sents(sents) do
+    sents
+    |> String.split(~r{(^|\.\s*)(?<empty>)(?=\w)}, on: [:empty])
+    |> Enum.map_join(&String.capitalize/1)
+  end
+
 end

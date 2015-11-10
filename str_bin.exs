@@ -44,13 +44,44 @@ defmodule StrBin do
     end
   end
 
-  # def cap_sents(<<>>),                      do: []
-  # def cap_sents(<<?., ?\s, h, t::binary>>), do: <<?., ?\s, String.upcase(h), cap_sents(t)>>
-  # def cap_sents(<<h, t::binary>>),          do: <<String.downcase(h), cap_sents(t)>>
   def cap_sents(sents) do
     sents
     |> String.split(~r{(^|\.\s*)(?<empty>)(?=\w)}, on: [:empty])
     |> Enum.map_join(&String.capitalize/1)
   end
 
+  defp _parse_order([id, state, net]) do 
+    [String.to_integer(id),
+     String.to_atom(state),
+     String.to_float(net)]
+   end
+
+  defp _split_order(row) do
+    row
+    |> String.split(~r{,:|,})
+    |> _parse_order
+  end
+
+  defp _map_orders([header | rows]) do
+    keys =
+      header
+      |> String.split(~r{,})
+      |> Enum.map(&String.to_atom/1)
+    orders =
+      rows
+      |> Enum.map(&_split_order/1)
+
+    for vals <- orders, do: Enum.zip(keys, vals)
+  end
+
+  def orders_with_totals do
+    Code.load_file("comp.exs")
+    {:ok, file_pid} = File.open "orders.csv"
+    
+    file_pid
+    |> IO.read(:all)
+    |> String.split(~r{\n}, trim: :true)
+    |> _map_orders
+    |> Comp.orders_with_totals
+  end
 end

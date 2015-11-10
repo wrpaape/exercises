@@ -28,8 +28,8 @@ defmodule Comp do
     (1 + (_tax_rates[state] || 0)) * net_amount
   end
 
-  def orders_with_total do
-    for order <- _orders,
+  def orders_with_totals(orders \\ _orders) do
+    for order <- orders,
     do: Keyword.put_new(order, :total_amount, total_amount(order))
   end
 end

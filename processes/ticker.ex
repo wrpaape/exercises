@@ -8,94 +8,121 @@ defmodule Ticker do
     ticker_pid = spawn(__MODULE__, :generator, [[], []])
     :global.register_name(@ticker, ticker_pid)
     
-    name_bucket_pid = spawn(__MODULE__, :name_bucket, [@names, %{}])
+    name_bucket_pid = spawn(__MODULE__, :name_bucket, [%{}, @names])
     :global.register_name(@name_bucket, name_bucket_pid)
 
-    :timer.send_interval(@interval, pid, {:do_tick})
+    :timer.send_interval(@interval, pid, {:tick})
   end
 
   def register(pid) do
     send(:global.whereis_name(@ticker), {:register, pid, name})
   end
 
-  def name_bucket([next | todo], assigned) do
+  def name_bucket(client_map, [name | rem]) do
     receive do
-      {:name, pid} ->
-
-
+      {:name, pid} -> name_client(client_map, name, pid, rem)
     end
+  end
+
+  def name_bucket(client_map, []) do
+    IO.puts """
+    ++++++++++++++++++++
+    + OUT OF NAMES LOL +
+    ++++++++++++++++++++
+    """
+    receive do
+      {:name, pid} -> name_client(client_map, pid, pid, [])    
+    end
+  end
+
+  def name_client(client_map, name, pid, rem) do
+    client_map
+    |> Map.put_new(name, pid)
+    |> name_bucket(rem)
   end
 
   def generator(todo, done) do
     receive do
       {:register, pid} ->
-        IO.puts "registering #{inspect pid}..."
+        IO.puts """
+          $$$$$$$$$$$$$$$$$$$$$$$$$$$$
+           registering #{inspect pid}...
+          """
         send(:global.whereis_name(@name_bucket), {:name, pid})
         receive do
-          {:assigned, name} ->
-            IO.puts "** welcome #{inspect name}! **\n"
+          {:named, name} ->
+            IO.puts """
+             welcome #{inspect name}!
+            $$$$$$$$$$$$$$$$$$$$$$$$$$$$
+            """
+            send(pid, {named: name})
         end
+        generator(todo, [pid | done])
 
-        generator(todo, [client| done])
-      {:do_tick} ->
-        IO.puts "**********************"
-        IO.puts "*    ABOUT TO TIC    *"
-        IO.puts "**********************"
-        send_tick(todo, done)
+      {:tick} ->
+        IO.puts """
+          ***********************************************
+          *                     tick                    *
+          *                      .                      *
+          *                      .                      *
+          *                      .                      *
+          *               SENDING THE TOCK!             *
+          ***********************************************
+          """
+        tock_next(todo, done)
     end
   end
 
-  def send_tick([next | todo], done) do
-    IO.puts """
-    **********************
-     tock: #{inspect next}
-     todo: #{inspect todo}
-     done: #{inspect done}
-    **********************
-    """
-
-    send(next, {:tick})
-    generator(todo, [next | done])
-  end
-
-  def send_tick([], []) do
-    IO.puts "tock: no clients!"
-    generator([], [])
-  end
-
-  def send_tick([], done) do
+  def tock_next([], []),              do: generator([], [])
+  def tock_next([next | todo], done), do: send_tock(next, todo, done)
+  def tock_next([], done)             do
     [next | todo] = Enum.reverse(done)
+    send_tock(next, todo, [])
+  end
+
+  def send_tock(pid, todo, done) do
     IO.puts """
-    **********************
-     tock: #{inspect next}
-     todo: #{inspect todo}
-     done: []
-    **********************
-    """
-    send(next, {:tick})
-    generator(todo, [next])
+      ***********************
+        will tock: #{inspect pid}
+        todo:      #{inspect todo}
+        done:      #{inspect done}
+      ***********************
+      """
+    send(pid, {:tock})
+    generator(todo, [pid | done])
   end
 end
 
 defmodule Client do
-  def name(pid) do
-  end
-
-  def kill(pid) do
-    send()
-  end
-
   def start do
-
-    pid = spawn(__MODULE__, :receiver, [])
+    pid = spawn(__MODULE__, :new, [])
     Ticker.register(pid)
   end
 
-  def receiver do
+  def new do
     receive do
-      {:tick} ->
-        IO.puts "tock in client #{inspect self}\n\n"
-        receiver
+      {:named, name} ->
+        IO.puts """
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+          Hello everybody, my name is #{name}
+          and I want the tock
+          GIVE ME THE TOCK!
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        """
+        wait_for_the_tock(name)
+    end
+  end
+
+  def wait_for_the_tock(name)
+    receive do
+      {:tock} ->
+        msg = "* I, #{inspect name} (#{inspect self}), JUST GOT TOCKED! *"
+        border = String.duplicate("*", String.length(msg))
+        List.duplicate(".", 3)
+        |> Enum.into([border, msg, border])
+        |> Enum.join("\n")
+        |> IO.puts
+        wait_for_the_tock(name)
     end
   end
 end

@@ -1,8 +1,8 @@
 defmodule Ticker do
-  @interval 2000
+  @interval 5000
   @ticker :ticker
   @name_bucket :name_bucket
-  @names = ~w(Billy Bobby Bowie Jannet John Joe James Jim Bob Fred Frank Alice Ann)
+  @names ~w(Billy Bobby Bowie Jannet John Joe James Jim Bob Fred Frank Alice Ann)
 
   def start do
     ticker_pid = spawn(__MODULE__, :generator, [[], []])
@@ -11,32 +11,34 @@ defmodule Ticker do
     name_bucket_pid = spawn(__MODULE__, :name_bucket, [%{}, @names])
     :global.register_name(@name_bucket, name_bucket_pid)
 
-    :timer.send_interval(@interval, pid, {:tick})
+    :timer.send_interval(@interval, ticker_pid, {:tick})
   end
 
   def register(pid) do
-    send(:global.whereis_name(@ticker), {:register, pid, name})
+    send(:global.whereis_name(@ticker), {:register, pid})
   end
 
-  def name_bucket(client_map, [name | rem]) do
+  def name_bucket(clients, [name | rem]) do
     receive do
-      {:name, pid} -> name_client(client_map, name, pid, rem)
+      {:name, pid} -> name_client(clients, name, pid, rem)
     end
   end
 
-  def name_bucket(client_map, []) do
+  def name_bucket(clients, []) do
     IO.puts """
     ++++++++++++++++++++
     + OUT OF NAMES LOL +
     ++++++++++++++++++++
     """
     receive do
-      {:name, pid} -> name_client(client_map, pid, pid, [])    
+      {:name, pid} -> name_client(clients, pid, pid, [])    
     end
   end
 
-  def name_client(client_map, name, pid, rem) do
-    client_map
+  def name_client(clients, name, pid, rem) do
+    send(:global.whereis_name(@ticker), {:named, name})
+
+    clients
     |> Map.put_new(name, pid)
     |> name_bucket(rem)
   end
@@ -55,7 +57,7 @@ defmodule Ticker do
              welcome #{inspect name}!
             $$$$$$$$$$$$$$$$$$$$$$$$$$$$
             """
-            send(pid, {named: name})
+            send(pid, {:named, name})
         end
         generator(todo, [pid | done])
 
@@ -93,6 +95,9 @@ defmodule Ticker do
   end
 end
 
+
+
+
 defmodule Client do
   def start do
     pid = spawn(__MODULE__, :new, [])
@@ -104,7 +109,7 @@ defmodule Client do
       {:named, name} ->
         IO.puts """
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-          Hello everybody, my name is #{name}
+          Hello everybody, my name is #{inspect name}
           and I want the tock
           GIVE ME THE TOCK!
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -113,7 +118,7 @@ defmodule Client do
     end
   end
 
-  def wait_for_the_tock(name)
+  def wait_for_the_tock(name) do
     receive do
       {:tock} ->
         msg = "* I, #{inspect name} (#{inspect self}), JUST GOT TOCKED! *"

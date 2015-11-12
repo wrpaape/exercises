@@ -1,32 +1,58 @@
 defmodule Ticker do
   @interval 2000
-  @name :ticker
+  @ticker :ticker
+  @name_bucket :name_bucket
+  @names = ~w(Billy Bobby Bowie Jannet John Joe James Jim Bob Fred Frank Alice Ann)
 
   def start do
-    pid = spawn(__MODULE__, :generator, [[], []])
-    :global.register_name(@name, pid)
+    ticker_pid = spawn(__MODULE__, :generator, [[], []])
+    :global.register_name(@ticker, ticker_pid)
+    
+    name_bucket_pid = spawn(__MODULE__, :name_bucket, [@names, %{}])
+    :global.register_name(@name_bucket, name_bucket_pid)
+
     :timer.send_interval(@interval, pid, {:do_tick})
   end
 
-  def register(client_pid) do
-    send(:global.whereis_name(@name), {:register, client_pid})
+  def register(pid) do
+    send(:global.whereis_name(@ticker), {:register, pid, name})
+  end
+
+  def name_bucket([next | todo], assigned) do
+    receive do
+      {:name, pid} ->
+
+
+    end
   end
 
   def generator(todo, done) do
     receive do
       {:register, pid} ->
-        IO.puts "registering #{inspect pid}\n\n"
-        generator(todo, [pid | done])
+        IO.puts "registering #{inspect pid}..."
+        send(:global.whereis_name(@name_bucket), {:name, pid})
+        receive do
+          {:assigned, name} ->
+            IO.puts "** welcome #{inspect name}! **\n"
+        end
+
+        generator(todo, [client| done])
       {:do_tick} ->
-        IO.puts "** tick **"
+        IO.puts "**********************"
+        IO.puts "*    ABOUT TO TIC    *"
+        IO.puts "**********************"
         send_tick(todo, done)
     end
   end
 
   def send_tick([next | todo], done) do
-    IO.puts "tock: #{inspect next}"
-    IO.puts "todo: #{inspect todo}"
-    IO.puts "done: #{inspect done}"
+    IO.puts """
+    **********************
+     tock: #{inspect next}
+     todo: #{inspect todo}
+     done: #{inspect done}
+    **********************
+    """
 
     send(next, {:tick})
     generator(todo, [next | done])
@@ -38,20 +64,29 @@ defmodule Ticker do
   end
 
   def send_tick([], done) do
-    [next | todo] =
-      done
-      |> Enum.reverse
-    IO.puts "tock: #{inspect next}"
-    IO.puts "todo: #{inspect todo}"
-    IO.puts "done: []"
-
+    [next | todo] = Enum.reverse(done)
+    IO.puts """
+    **********************
+     tock: #{inspect next}
+     todo: #{inspect todo}
+     done: []
+    **********************
+    """
     send(next, {:tick})
     generator(todo, [next])
   end
 end
 
 defmodule Client do
+  def name(pid) do
+  end
+
+  def kill(pid) do
+    send()
+  end
+
   def start do
+
     pid = spawn(__MODULE__, :receiver, [])
     Ticker.register(pid)
   end

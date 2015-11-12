@@ -13,7 +13,7 @@ defmodule Fib do
   # very inefficient, deliberately
   defp fib_calc(0), do: 0
   defp fib_calc(1), do: 1
-  defp fib_calc(n), do: fib_calc(n-1) + fib_calc(n-2)
+  defp fib_calc(n), do: fib_calc(n - 1) + fib_calc(n - 2)
 end
 
 defmodule Time do
@@ -23,7 +23,7 @@ defmodule Time do
 end
 
 Code.load_file "scheduler.exs"
-to_process = [ 37, 37, 37, 37, 37, 37 ]
+to_process = List.duplicate(37, 10)
 
 Enum.each(1..10, fn(num_processes) ->
   {time, result} =

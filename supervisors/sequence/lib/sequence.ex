@@ -17,6 +17,8 @@ defmodule Sequence do
   # end
 
   def start(_type, _args) do
-    {:ok, _pid} = Sequence.Supervisor.start_link(123)
+    :sequence
+    |> Application.get_env(:initial_number)
+    |> Sequence.Supervisor.start_link
   end
 end

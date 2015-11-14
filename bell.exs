@@ -1,28 +1,72 @@
 defmodule Fetcher do
-  defp fetch({:ok, result}), do: result
-  def fetch_dim(dim), do: apply(:io, dim, []) |> fetch |> - 1
+  defp fetch!({:ok, result}), do: result
+  def fetch_dim(dim), do: apply(:io, dim, []) |> fetch! |> - 1
+end
+
+defmodule Parallel do
+  @parent self
+
+  def map(collection, fun) do
+    collection
+    |> Enum.map(fn(elem) ->
+      spawn_link(fn ->
+        send(@parent, {self, fun.(elem)})
+      end)
+    end)
+    |> Enum.map(fn(pid) ->
+      receive do
+        {^pid, result} -> result
+      end
+    end)
+  end
 end
 
 defmodule Bell do
-  import Fetcher
+  use Fetcher
 
   @std_max 3.5
-  @num_buckets fetch_dim(:columns)
-  @bucket_width 2 * @std_max / @num_buckets
-  @max_bucket_count 30 * fetch_dim(:rows)
+  @num_passes 100
+  @rows Fetcher.fetch_dim(:rows)
+  @columns Fetcher.fetch_dim(:columns)
+  @bucket_width 2 * @std_max / @columns
+  @num_queries 50 * @rows 
+
 
   def curve do
     # System.cmd("clear", [])
-    # clear
-    1..@num_buckets
+    use Parallel
+    spawn_buckets
+    |> List.duplicate(@num_passes)
+    |> Parallel.map(&generate_distribution/1)
+    |> average_distributions
+    |> print
+  end
+
+  def spawn_buckets do
+    1..@columns
     |> Enum.map(&spawn(__MODULE__, :bucket, [&1]))
-    |> Enum.map(&List.duplicate(&1, @max_bucket_count))
+    |> Enum.map(&List.duplicate(&1, @num_queries))
+  end
+
+  def generate_distribution(buckets) do
+    buckets
     |> Enum.map(fn(pids) ->
       pids
       |> Enum.map(&query_bucket/1)
       |> Enum.reduce(&(&1 + &2))
     end)
-    |> print
+  end
+
+  def average_distributions(distributions) do
+    distributions
+    |> Enum.reduce(fn(distribution, acc) ->
+      distribution
+      |> Enum.zip(acc)
+      |> Enum.map(fn({e1, e2}) ->
+        e1 + e2
+      end)
+    end)
+    |> Enum.map(&(&1 / @num_passes))
   end
 
   def bucket(n) do
@@ -31,21 +75,19 @@ defmodule Bell do
     {min, min + @bucket_width} |> stash
   end
 
-  def stash(bucket) do
+  def stash({lbound, rbound}) do
+    in_bucket? = &(&1 >= lbound and &1 < rbound)
+
     receive do
       {:query, val, pid} ->
-        result = if val |> in_range?(bucket), do: 1, else: 0
-        
+        result = if in_bucket?.(val), do: 1, else: 0
         send(pid, {:response, result})
-        stash(bucket)
+        {lbound, rbound} |> stash
     end
   end
 
-  defp in_range?(val, {min, max}), do: val >= min and val < max
-
-  defp query_bucket(bucket_pid) do
-    bucket_pid
-    |> send({:query, :rand.normal, self})
+  defp query_bucket(pid) do
+    send(pid, {:query, :rand.normal, self})
 
     receive do
       {:response, result} -> result
@@ -53,17 +95,11 @@ defmodule Bell do
   end
 
   defp print(distribution) do
-    distribution
-    |> Enum.max
-    |> Range.new(1)
-    |> Enum.map(fn(count) ->
+    @rows..0
+    |> Enum.map_join("\n", fn(count) ->
       distribution
-      |> Enum.map(fn(bucket_count) ->
-        if bucket_count >= count, do: "X", else: " "
-      end)
-      |> Enum.join
+      |> Enum.map_join(&(if &1 > count, do: "X", else: " "))
     end)
-    |> Enum.join("\n")
     |> IO.puts
   end
 end

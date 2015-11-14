@@ -3,44 +3,98 @@ defmodule Fetcher do
   def fetch_dim(dim), do: apply(:io, dim, []) |> fetch! |> - 1
 end
 
-defmodule Parallel do
-  @parent self
-
-  def map(collection, fun) do
+defmodule MultiProcess do
+  def async_map(collection, fun) do
+    parent = self
     collection
     |> Enum.map(fn(elem) ->
       spawn_link(fn ->
-        send(@parent, {self, fun.(elem)})
+        parent |> send({:response, fun.(elem)})
       end)
     end)
-    |> Enum.map(fn(pid) ->
+    |> Enum.map(fn(_pid) ->
       receive do
-        {^pid, result} -> result
+        {:response, result} -> result
       end
     end)
   end
 end
 
 defmodule Bell do
-  use Fetcher
-
-  @std_max 3.5
-  @num_passes 100
+  @std_max 4
+  @num_passes 10
   @rows Fetcher.fetch_dim(:rows)
   @columns Fetcher.fetch_dim(:columns)
   @bucket_width 2 * @std_max / @columns
-  @num_queries 50 * @rows 
+  @num_queries 40 * @rows 
 
 
   def curve do
     # System.cmd("clear", [])
-    use Parallel
     spawn_buckets
     |> List.duplicate(@num_passes)
-    |> Parallel.map(&generate_distribution/1)
+    # |> MultiProcess.async_map(&generate_distribution/1)
+    |> Enum.map(&generate_distribution/1)
     |> average_distributions
-    |> print
+    # |> print
   end
+
+  def report(num_passes \\ 1) do
+    1..num_passes
+    |> Enum.each(fn(pass) ->
+      [
+        map: &Enum.map/2,
+        async: &MultiProcess.async_map/2
+      ]
+      |> Enum.each(&time_map(&1, pass))
+
+      wrap("", "/\\")
+      |> IO.puts
+    end)
+  end
+
+  defp format({display, time}), do: "#{display}:  #{time / 1.0e6} s"
+  defp wrap(results, char) do
+    String.duplicate(char, @columns |> div(2))
+    |> List.duplicate(2)
+    |> Enum.join("\n" <> results <> "\n")
+  end
+
+  def time_map({display, map_fun}, pass) do
+    "timing #{inspect map_fun} (pass #{pass})"
+    |> wrap(" ")
+    |> IO.puts
+
+    {time_total, result} =
+      :timer.tc(fn ->
+        {time1, buckets} =
+          :timer.tc(&spawn_buckets/0)
+        
+        {time2, duped_buckets} =
+          :timer.tc(&List.duplicate/2, [buckets, @num_passes])
+
+        {time3, dists} = :timer.tc(fn ->
+          apply(map_fun, [duped_buckets, &generate_distribution/1])
+        end)
+
+        {time4, _avg} =
+          :timer.tc(&average_distributions/1, [dists])
+
+        [
+          spawn_buckets: time1,
+          duped_buckets: time2,
+          generate_dist: time3,
+          average_dists: time4
+        ]
+        |> Enum.map(&format/1)
+      end)
+
+    [format({display, time_total}) | result]
+    |> Enum.join("\n")
+    |> wrap("*")
+    |> IO.puts
+  end
+
 
   def spawn_buckets do
     1..@columns

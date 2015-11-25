@@ -1,6 +1,6 @@
-defmodule Fetcher do
+defmodule Fetch do
   defp fetch!({:ok, result}), do: result
-  def fetch_dim(dim), do: apply(:io, dim, []) |> fetch! |> - 1
+  def dim(dim), do: apply(:io, dim, []) |> fetch! |> - 1
 end
 
 defmodule MultiProcess do
@@ -23,8 +23,8 @@ end
 defmodule Bell do
   @std_max 4
   @num_passes 10
-  @rows Fetcher.fetch_dim(:rows)
-  @columns Fetcher.fetch_dim(:columns)
+  @rows Fetch.dim(:rows)
+  @columns Fetch.dim(:columns)
   @bucket_width 2 * @std_max / @columns
   @num_queries 40 * @rows 
 
@@ -33,10 +33,9 @@ defmodule Bell do
     # System.cmd("clear", [])
     spawn_buckets
     |> List.duplicate(@num_passes)
-    # |> MultiProcess.async_map(&generate_distribution/1)
-    |> Enum.map(&generate_distribution/1)
+    |> MultiProcess.async_map(&generate_distribution/1)
     |> average_distributions
-    # |> print
+    |> print
   end
 
   def report(num_passes \\ 1) do
@@ -60,7 +59,7 @@ defmodule Bell do
     |> Enum.join("\n" <> results <> "\n")
   end
 
-  def time_map({display, map_fun}, pass) do
+  defp time_map({display, map_fun}, pass) do
     "timing #{inspect map_fun} (pass #{pass})"
     |> wrap(" ")
     |> IO.puts
@@ -96,13 +95,13 @@ defmodule Bell do
   end
 
 
-  def spawn_buckets do
+  defp spawn_buckets do
     1..@columns
     |> Enum.map(&spawn(__MODULE__, :bucket, [&1]))
     |> Enum.map(&List.duplicate(&1, @num_queries))
   end
 
-  def generate_distribution(buckets) do
+  defp generate_distribution(buckets) do
     buckets
     |> Enum.map(fn(pids) ->
       pids
@@ -111,7 +110,7 @@ defmodule Bell do
     end)
   end
 
-  def average_distributions(distributions) do
+  defp average_distributions(distributions) do
     distributions
     |> Enum.reduce(fn(distribution, acc) ->
       distribution
@@ -129,7 +128,7 @@ defmodule Bell do
     {min, min + @bucket_width} |> stash
   end
 
-  def stash({lbound, rbound}) do
+  defp stash({lbound, rbound}) do
     in_bucket? = &(&1 >= lbound and &1 < rbound)
 
     receive do

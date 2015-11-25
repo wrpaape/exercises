@@ -4,13 +4,13 @@ defmodule My do
   end
 
   defmacro times_n(n) do
-
     fun_name =
       "times_"
       <> Integer.to_string(n)
       |> String.to_atom
+
     quote do
-      def unquote(fun_name) (m), do: m * n
+      def unquote(fun_name)(m), do: m * unquote(n)
     end
   end
 end

@@ -8,6 +8,17 @@ defmodule Tracer do
     "#{name}(#{dump_args(args)})"
   end
 
+  defmacro def(definition = {:when, _, [{name, _, args}, _guard_clause]}, do: content)  do
+    quote do
+      Kernel.def(unquote(definition)) do
+        IO.puts "==> call:    #{Tracer.dump_defn(unquote(name), unquote(args))}"
+        result = unquote(content)
+        IO.puts "<== result:  #{result}"
+        result
+      end
+    end
+  end
+
   defmacro def(definition = {name, _, args}, do: content) do
     quote do
       Kernel.def(unquote(definition)) do
@@ -29,11 +40,14 @@ end
 
 defmodule Test do
   use Tracer
+
+  def puts_sum_three(a, b, c),               do: a + b + c |> IO.inspect
   
-  def puts_sum_three(a, b, c), do: a + b + c |> IO.inspect
-  
-  def add_list(list),          do: list |> Enum.reduce(&(&1 + &2))
+  def add_list(list),                        do: list |> Enum.reduce(&(&1 + &2))
+
+  def add_nums(num1, num2) when num2 > num1, do: num1 + num2
 end
 
 Test.puts_sum_three(1, 2, 3)
 Test.add_list([5, 6, 7, 8])
+Test.add_nums(3, 5)
